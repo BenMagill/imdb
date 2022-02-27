@@ -278,7 +278,7 @@ class Table {
         })
         return {
             success: true,
-            deletedCount: positions.length+1
+            deletedCount: positions.length
         }
     } 
 
@@ -295,7 +295,7 @@ class Table {
         })
         return {
             success: true,
-            updated: (positions.length+1)-errors,
+            updated: (positions.length)-errors,
             failed: errors            
         }
     }
