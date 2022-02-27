@@ -343,36 +343,3 @@ class Table {
 }
 
 export default Table
-
-const a = new Table([
-    { a: 'test', b: '1' },
-    { a: 'test', b: '2' },
-    { a: 'test', b: '2' },
-    { a: 'test2', b: '2' },
-    { a: 'test3', b: '1' },
-    { a: 'test4' },
-    { a: 'test5' },
-])
-// console.log(a)
-// a.addIndex('a');
-// a.addIndex('b');
-
-// console.log(a.indexes.a)
-// console.log(a.indexes.b)
-
-console.log(a.update({
-    a: "test",
-    b: '1'
-}, {lol: "Ok"}))
-
-console.log(a.data)
-console.log(a.empty)
-
-a.create({c: "bingo"})
-
-console.log(a.data)
-console.log(a.empty)
-// a.executeQuery({
-//     _id: 2
-// })
-
