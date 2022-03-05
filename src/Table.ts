@@ -165,6 +165,17 @@ class Table {
     executeQuery(query: any) {
         let indexes: number[] = [];
         let firstCycle = true;
+        
+        // handle empty
+        if (helpers.isEmptyObject(query)) {
+            // return all positions without the deleted ones
+            for (let i = 0; i < this.data.length; i++) {
+                if (this.empty.indexOf(i) === -1) {
+                    indexes.push(i)
+                }
+            }
+        }
+
         for (const key in query) {
             if (Object.prototype.hasOwnProperty.call(query, key)) {
                 const value = query[key];
@@ -310,6 +321,7 @@ class Table {
         delete this.indexes[field]
     }
 
+    // is this needed and does it work?
     updateIndexesForRow(row: any, position: number) {
         for (const key in this.indexes) {
             if (Object.prototype.hasOwnProperty.call(this.indexes, key)) {

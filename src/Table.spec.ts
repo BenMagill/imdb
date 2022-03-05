@@ -14,12 +14,18 @@ describe('Table', () => {
         })
     });    
     describe('executeQuery', () => {
-        it.todo('will return all data when an empty object provided')
+        it('will return all data when an empty object provided', () => {
+            const table = new Table();
+            table.create({a: 'test1', visible: true})
+            table.create({a: 'test2', visible: false})
+            table.create({a: 'test2', visible: true})
+
+            expect(table.executeQuery({})).toStrictEqual([0, 1, 2])
+        })
         it.todo('will return the correct data when using indexes')
         it.todo('will return the correct data when not using indexes')
         it.todo('will return the correct data when using a mix of indexes and none')
         describe('Operators', () => {
-
         })
     });
     describe('create', () => {
