@@ -127,12 +127,20 @@ class Table {
 
     // keeps track of rows without any data
     empty: number[]
-    constructor (data?: Object[]) {
+
+    constructor (options?: {data?: Object[], indexes?: string[]}) {
         this.index = 1
-        this.data = data? [...this.build(data)] : [];
+
+        this.data = options?.data? [...this.build(options.data)] : [];
+
         this.indexes = {
             _id: new Index('_id')
         }
+        // create indexes for provided fields
+        options?.indexes?.forEach(keyName => {
+            this.indexes[keyName] = new Index(keyName)
+        })
+
         this.indexes._id.build(this.data || [])
         this.empty = []
     }
