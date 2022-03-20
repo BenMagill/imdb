@@ -1,6 +1,5 @@
 // handles the underlying logic of CRUD operations with queries
 
-import DPrint from "./DPrint"
 import helpers from "./helpers"
 
 /**
@@ -69,13 +68,13 @@ class Index {
         if (currData) {
             currData.push(position)
         } else {
-            // i wish i was using rust for this
             this.indexes[value] = [position]
         }
     }
     
     
     update(position: number, oldValue: any, newValue: any) {
+        // check if index actually exists
         let currData = this.get(oldValue);
         if (currData) {
             this.delete(position, oldValue);
@@ -88,7 +87,7 @@ class Index {
         if (currData) {
             const positionLoc = currData.indexOf(position);
             if (positionLoc > -1) {
-                // remove it from the array and add to new one
+                // remove it from the array
                 currData.splice(positionLoc, 1);
             }
         }
@@ -163,6 +162,9 @@ class Table {
         }
     }
 
+    /**
+     * Creates a unique identifier
+     */
     generateId() {
         return this.index++
     }
@@ -187,8 +189,8 @@ class Table {
         for (const key in query) {
             if (Object.prototype.hasOwnProperty.call(query, key)) {
                 const value = query[key];
-                console.log({key, value})
-                console.log('is operator: ', this.isOperation(key))
+                // console.log({key, value})
+                // console.log('is operator: ', this.isOperation(key))
                 
                 // Check if key is operator
                 if (this.isOperation(key)) {
@@ -207,7 +209,7 @@ class Table {
                     // check if field indexed
                     if (this.isIndexed(key)) {
                         const index = this.indexes[key]
-                        DPrint(`key ${key} is indexed`)
+                        // DPrint(`key ${key} is indexed`)
                         const positionsFound = index.get(value) || []
                         if (firstCycle) {
                             indexes = positionsFound;
@@ -243,8 +245,6 @@ class Table {
                             });
                             indexes = tempIndexes;
                         }
-                        // search manually for it through every row :(
-                        // when not indexed only have to search through rows already matching so can just replace the foundIndexes
                     }
                 }
                 firstCycle = false;
@@ -266,9 +266,9 @@ class Table {
         }
 
         this.data[rowPosition] = cleanedData
-        console.log(this.data)
-        this.updateIndexesForRow(cleanedData, rowPosition)
-        
+        // console.log(this.data)
+        this.addIndexesForRow(cleanedData, rowPosition)
+        return cleanedData
     }
 
     find(query: any) {
@@ -304,10 +304,22 @@ class Table {
     update(query: any, set: any) {
         const positions = this.executeQuery(query);
         let errors = 0
+        // locations that matched the query
         positions.forEach(position => {
             const row = this.data[position];
             if (row) {
+                // dont allow _id to be modified
                 this.data[position] = {...this.data[position], ...set, _id: row._id }
+
+                // update indexes
+                for (const key in set) {
+                    if (Object.prototype.hasOwnProperty.call(set, key)) {
+                        if (this.isIndexed(key)) {
+                            const value = set[key];
+                            this.indexes[key].update(position, row[key], value)
+                        }
+                    }
+                }
             } else {
                 errors++
             }
@@ -329,12 +341,17 @@ class Table {
         delete this.indexes[field]
     }
 
-    // is this needed and does it work?
-    updateIndexesForRow(row: any, position: number) {
-        for (const key in this.indexes) {
-            if (Object.prototype.hasOwnProperty.call(this.indexes, key)) {
-                const index = this.indexes[key];
-                index.add(position, row[key])
+    /**
+     * Adds the indexes for a row on its creation 
+     */
+    addIndexesForRow(row: any, position: number) {
+        for (const key in row) {
+            if (Object.prototype.hasOwnProperty.call(row, key)) {
+                const value = row[key];
+                if (this.isIndexed(key)) {
+                    const index = this.indexes[key]
+                    index.add(position, value)
+                }
             }
         }
     }

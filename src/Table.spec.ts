@@ -29,17 +29,49 @@ describe('Table', () => {
         })
     });
     describe('create', () => {
-        it.todo('will create a new row')
-        it.todo('will create a new row using an empty space')
+        it('will create a new row', () => {
+            const table = new Table();
+            expect(() => table.create({a: 'test'})).not.toThrow();
+            expect(table.data[0]?.a).toBe('test')
+        })
+        it('will create a new row using an empty space', () => {
+            const table = new Table();
+            table.create({a: 'test'})
+            table.create({a: 'test1'})
+            table.delete({a: 'test'})
+            expect(() => table.create({a: 'test2'})).not.toThrow();
+            expect(table.data[0]?.a).toBe('test2')
+        })
     });
     describe('find', () => {
-        it.todo('will return found rows')
+        it('will return found rows', () => {
+            const table = new Table();
+            table.create({a: 'test'})
+            table.create({a: 'test1'})
+            expect(table.find({a: 'test'})[0]?.a).toBe('test')
+        })
     });
     describe('delete', () => {
-        it.todo('will remove rows and their indexes')
+        it('will remove rows and their indexes', () => {
+            const table = new Table({ indexes: ['a'] });
+            table.create({a: 'test'})
+            table.create({a: 'test1'})
+            table.delete({a: 'test'})
+            expect(table.data[0]).toBe(null)
+            expect(table.empty).toStrictEqual([0])
+            expect(table.indexes['a'].get('test')).toStrictEqual([])
+        })
     });
     describe('update', () => {
-        it.todo('will update rows and their indexes')
+        it('will update rows and their indexes', () => {
+            const table = new Table({ indexes: ['a'] });
+            table.create({a: 'test'})
+            table.create({a: 'test1'})
+            table.update({a: 'test'}, {a: 'test3', b: 'updated'})
+            console.log(JSON.stringify(table))
+            expect(table.find({a: 'test3', b: 'updated'})[0]).toStrictEqual({_id: 1, a: "test3", b: "updated"})
+            expect(table.indexes['a'].get('test3')).toStrictEqual([0])
+        })
     });
     describe('addIndex', () => {
         it.todo('will create an index for a field')
