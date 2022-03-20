@@ -46,9 +46,13 @@ import { KeyValue } from './types';
  * 
  * for arrays easy to allow indexing of basic types but problem with child arrays and objects
  */
+
+type IndexPositions = KeyValue<number[]>
+
 class Index {
-	indexes: KeyValue<number[]> = {};
+	indexes: IndexPositions = {};
 	fieldName: string;
+
 	constructor(fieldName: string) {
 		this.fieldName = fieldName;
 		this.indexes = {};
@@ -59,12 +63,12 @@ class Index {
 		return this.indexes[value] || null;
 	}
 
-	getAll() {
+	getAll(): IndexPositions {
 		return this.indexes;
 	}
 
 	// Add a value to index
-	add(position: number, value: any) {
+	add(position: number, value: any): void {
 		const currData = this.get(value);
 		if (currData) {
 			currData.push(position);
@@ -74,7 +78,7 @@ class Index {
 	}
     
     
-	update(position: number, oldValue: any, newValue: any) {
+	update(position: number, oldValue: any, newValue: any): void {
 		// check if index actually exists
 		const currData = this.get(oldValue);
 		if (currData) {
@@ -83,7 +87,7 @@ class Index {
 		}
 	}
     
-	delete(position: number, value: any) {
+	delete(position: number, value: any): void {
 		const currData = this.get(value);
 		if (currData) {
 			const positionLoc = currData.indexOf(position);
@@ -94,7 +98,7 @@ class Index {
 		}
 	}
 
-	build(data: any[]) {
+	build(data: any[]): void {
 		for (let i = 0; i < data.length; i++) {
 			const row = data[i];
 			this.add(i, row[this.fieldName]);
@@ -114,13 +118,18 @@ type Operation = {
     type: 'root'
 }
 
+type RowInput = KeyValue<any>
+
 type Row = {
-    [key: string]: any
+	[key: string]: any,
+	_id: UniqueId
 }
 
+type UniqueId = number;
+
 class Table {
-	data: Array<Row | null>;
-	index: number;
+	data: Array<RowInput | null>;
+	index: UniqueId;
 	indexes: {
         [key: string]: Index 
     };
@@ -145,9 +154,7 @@ class Table {
 		this.empty = [];
 	}
     
-	operators: {
-        [key: string]: Function
-    } = {
+	operators: KeyValue<Function> = {
 			eq: (op: Operation) => {
 				if (op.type === 'root') throw Error();
     
@@ -166,14 +173,14 @@ class Table {
 	/**
      * Creates a unique identifier
      */
-	generateId() {
+	generateId(): UniqueId {
 		return this.index++;
 	}
 
 	/**
      * return the locations of the rows so you can do whatever with them
      */
-	executeQuery(query: any) {
+	executeQuery(query: any): number[] {
 		let indexes: number[] = [];
 		let firstCycle = true;
         
@@ -254,7 +261,7 @@ class Table {
 		return indexes;
 	}
 
-	create(data: {[key: string]: any}) {
+	create(data: {[key: string]: any}): Row {
 		// this could be substituted for a ObjectId like in mongo
 		const rowIndex = this.index++;
 		// Determine where it will be
@@ -272,7 +279,7 @@ class Table {
 		return cleanedData;
 	}
 
-	find(query: any) {
+	find(query: any): Row[] {
 		const positions = this.executeQuery(query);
 		const loaded: any[] = [];
 		positions.forEach(position => {
@@ -302,7 +309,11 @@ class Table {
 		};
 	} 
 
-	update(query: any, set: any) {
+	update(query: any, set: any): {
+		success: boolean,
+		updated: number,
+		failed: number            
+	} {
 		const positions = this.executeQuery(query);
 		let errors = 0;
 		// locations that matched the query
@@ -332,20 +343,20 @@ class Table {
 		};
 	}
 
-	addIndex(field: string) {
+	addIndex(field: string): void {
 		this.indexes[field] = new Index(field);
 		// have to build index with current data
 		this.indexes[field].build(this.data);
 	}
 
-	removeIndex(field: string) {
+	removeIndex(field: string): void {
 		delete this.indexes[field];
 	}
 
 	/**
      * Adds the indexes for a row on its creation 
      */
-	addIndexesForRow(row: any, position: number) {
+	addIndexesForRow(row: RowInput, position: number) {
 		for (const key in row) {
 			if (Object.prototype.hasOwnProperty.call(row, key)) {
 				const value = row[key];
@@ -357,11 +368,11 @@ class Table {
 		}
 	}
 
-	isIndexed(key: string) {
+	isIndexed(key: string): boolean {
 		return !!this.indexes[key];
 	}
 
-	isOperation(key: string) {
+	isOperation(key: string): boolean {
 		return key.startsWith('$');
 	}
 
