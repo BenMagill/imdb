@@ -1,6 +1,6 @@
 // handles the underlying logic of CRUD operations with queries
 
-import helpers from './helpers';
+import { isEmptyObject, isObject } from './helpers';
 import { KeyValue } from './types';
 
 /**
@@ -48,6 +48,8 @@ import { KeyValue } from './types';
  */
 
 type IndexPositions = KeyValue<number[]>
+
+type Value = string | number | KeyValue<unknown> | unknown[] | boolean;
 
 class Index {
 	indexes: IndexPositions = {};
@@ -155,20 +157,20 @@ class Table {
 	}
     
 	operators: KeyValue<Function> = {
-			eq: (op: Operation) => {
-				if (op.type === 'root') throw Error();
+		eq: (op: Operation) => {
+			if (op.type === 'root') throw Error();
     
-				if (this.indexes[op.field]) {
-					const found = this.indexes[op.field][op.value];
-					if (!found) return null;
-					else if (typeof found === 'number') {
-						return [found];
-					} else {
-						return found;
-					}
+			if (this.indexes[op.field]) {
+				const found = this.indexes[op.field][op.value];
+				if (!found) return null;
+				else if (typeof found === 'number') {
+					return [found];
+				} else {
+					return found;
 				}
 			}
-		};
+		}
+	};
 
 	/**
      * Creates a unique identifier
@@ -185,7 +187,7 @@ class Table {
 		let firstCycle = true;
         
 		// handle empty
-		if (helpers.isEmptyObject(query)) {
+		if (isEmptyObject(query)) {
 			// return all positions without the deleted ones
 			for (let i = 0; i < this.data.length; i++) {
 				if (this.empty.indexOf(i) === -1) {
@@ -210,7 +212,7 @@ class Table {
 						type: 'root',
 						value: value,
 					});
-				} else if (helpers.isObject(value)) {
+				} else if (isObject(value)) {
 					// if the value is an object will mean uses operators
 				} else {
 					// find rows where key field equals value

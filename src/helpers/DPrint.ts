@@ -1,4 +1,4 @@
-const DPrint = (...args: any) => {
+const DPrint = (...args: unknown[]) => {
 	console.log(...args);
 };
 export default DPrint;
