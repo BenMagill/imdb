@@ -51,6 +51,10 @@ type IndexPositions = KeyValue<number[]>
 
 type Value = string | number | KeyValue<unknown> | unknown[] | boolean;
 
+const serializeKey = (value: Value): string => {
+	return typeof value + JSON.stringify(value);
+};
+
 class Index {
 	indexes: IndexPositions = {};
 	fieldName: string;
@@ -60,9 +64,10 @@ class Index {
 		this.indexes = {};
 	}
 
+
 	// Get based on a value or returns null
-	get(value: any): number[] | null {
-		return this.indexes[value] || null;
+	get(value: Value): number[] | null {
+		return this.indexes[serializeKey(value)] || null;
 	}
 
 	getAll(): IndexPositions {
@@ -70,17 +75,17 @@ class Index {
 	}
 
 	// Add a value to index
-	add(position: number, value: any): void {
+	add(position: number, value: Value): void {
 		const currData = this.get(value);
 		if (currData) {
 			currData.push(position);
 		} else {
-			this.indexes[value] = [position];
+			this.indexes[serializeKey(value)] = [position];
 		}
 	}
     
     
-	update(position: number, oldValue: any, newValue: any): void {
+	update(position: number, oldValue: Value, newValue: Value): void {
 		// check if index actually exists
 		const currData = this.get(oldValue);
 		if (currData) {
@@ -89,7 +94,7 @@ class Index {
 		}
 	}
     
-	delete(position: number, value: any): void {
+	delete(position: number, value: Value): void {
 		const currData = this.get(value);
 		if (currData) {
 			const positionLoc = currData.indexOf(position);
@@ -100,10 +105,13 @@ class Index {
 		}
 	}
 
-	build(data: any[]): void {
+	// TODO is this a RowInput or Row
+	build(data: Array<RowInput | null>): void {
 		for (let i = 0; i < data.length; i++) {
 			const row = data[i];
-			this.add(i, row[this.fieldName]);
+			if (row) {
+				this.add(i, row[this.fieldName]);
+			}
 		}
 	}
 }
@@ -120,17 +128,19 @@ type Operation = {
     type: 'root'
 }
 
-type RowInput = KeyValue<any>
+type RowInput = KeyValue<Value>
 
 type Row = {
-	[key: string]: any,
+	[key: string]: Value,
 	_id: UniqueId
 }
 
 type UniqueId = number;
 
+type Query = KeyValue<Value | Operation>
+
 class Table {
-	data: Array<RowInput | null>;
+	data: Array<Row | null>;
 	index: UniqueId;
 	indexes: {
         [key: string]: Index 
@@ -156,20 +166,20 @@ class Table {
 		this.empty = [];
 	}
     
-	operators: KeyValue<(Operation) => number[]> = {
-		eq: (op: Operation) => {
-			if (op.type === 'root') throw Error();
+	operators: KeyValue<(op: Operation) => number[]> = {
+		// eq: (op: Operation) => {
+		// 	if (op.type === 'root') throw Error();
     
-			if (this.indexes[op.field]) {
-				const found = this.indexes[op.field][op.value];
-				if (!found) return null;
-				else if (typeof found === 'number') {
-					return [found];
-				} else {
-					return found;
-				}
-			}
-		}
+		// 	if (this.indexes[op.field]) {
+		// 		const found = this.indexes[op.field][op.value];
+		// 		if (!found) return null;
+		// 		else if (typeof found === 'number') {
+		// 			return [found];
+		// 		} else {
+		// 			return found;
+		// 		}
+		// 	}
+		// }
 	};
 
 	/**
@@ -182,7 +192,7 @@ class Table {
 	/**
      * return the locations of the rows so you can do whatever with them
      */
-	executeQuery(query: any): number[] {
+	executeQuery(query: Query): number[] {
 		let indexes: number[] = [];
 		let firstCycle = true;
         
@@ -206,12 +216,12 @@ class Table {
 				if (this.isOperation(key)) {
 					// TODO add this
 					if (!this.operators[key]) throw Error();
-					const result = this.operators[key]({
-						data: this.data,
-						key,
-						type: 'root',
-						value: value,
-					});
+					// const result = this.operators[key]({
+					// 	data: this.data,
+					// 	key,
+					// 	type: 'root',
+					// 	value: value,
+					// });
 				} else if (isObject(value)) {
 					// if the value is an object will mean uses operators
 				} else {
@@ -263,7 +273,7 @@ class Table {
 		return indexes;
 	}
 
-	create(data: {[key: string]: any}): Row {
+	create(data: RowInput): Row {
 		// this could be substituted for a ObjectId like in mongo
 		const rowIndex = this.index++;
 		// Determine where it will be
@@ -281,22 +291,27 @@ class Table {
 		return cleanedData;
 	}
 
-	find(query: any): Row[] {
+	find(query: Query): Row[] {
 		const positions = this.executeQuery(query);
-		const loaded: any[] = [];
+		const loaded: Row[] = [];
 		positions.forEach(position => {
-			loaded.push(this.data[position]);
+			const row = this.data[position];
+			if (row !== null) {	
+				loaded.push(row);
+			} else {
+				console.log(`No data for row at position ${position}`);
+			}
 		});
 		return loaded;
 	}
 
-	delete(query: any): { success: boolean, deletedCount: number } {
+	delete(query: Query): { success: boolean, deletedCount: number } {
 		const positions = this.executeQuery(query);
 		positions.forEach(position => {
 			const row = this.data[position];
 			this.data[position] = null;
 			this.empty.push(position);
-			if (row) {
+			if (row !== null) {
 				for (const key in this.indexes) {
 					if (Object.prototype.hasOwnProperty.call(this.indexes, key)) {
 						const index = this.indexes[key];
@@ -311,7 +326,7 @@ class Table {
 		};
 	} 
 
-	update(query: any, set: any): {
+	update(query: Query, set: KeyValue<Value>): {
 		success: boolean,
 		updated: number,
 		failed: number            
@@ -378,18 +393,18 @@ class Table {
 		return key.startsWith('$');
 	}
 
-	build(data: any[]): Row[] {
-		const formatted: any = [];
+	build(data: Array<RowInput>): Row[] {
+		const formatted: Row[] = [];
 		data.forEach(row => {
 			if (row._id) {
 				// ensure no duplicates
 				throw new Error('Cant provide custom _id');
 			} else {
 				row._id = this.generateId();
+				formatted.push({...row, _id: this.generateId()} as Row);
 			}
-			formatted.push(row);
 		});
-		return data;
+		return formatted;
 	}
 }
 
