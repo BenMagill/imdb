@@ -17,7 +17,7 @@ class Database {
 		return this.tables[name] || null;
 	}
 
-	add(name: string) {
+	add(name: string): boolean {
 		if (this.get(name)) {
 			throw new Error('Table already exists');
 		}        
@@ -25,7 +25,7 @@ class Database {
 		return true;
 	}
 
-	delete(name: string) {
+	delete(name: string): boolean {
 		if (this.get(name)) {
 			delete this.tables[name];
 			return true;

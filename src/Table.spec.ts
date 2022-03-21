@@ -25,8 +25,7 @@ describe('Table', () => {
 		it.todo('will return the correct data when using indexes');
 		it.todo('will return the correct data when not using indexes');
 		it.todo('will return the correct data when using a mix of indexes and none');
-		describe('Operators', () => {
-		});
+		describe('Operators', () => {return;});
 	});
 	describe('create', () => {
 		it('will create a new row', () => {
@@ -80,9 +79,7 @@ describe('Table', () => {
 	describe('removeIndex', () => {
 		it.todo('will remove an index');
 	});
-	describe('updateIndexesForRow', () => {
-        
-	});
+	describe('updateIndexesForRow', () => {return;});
 	describe('isIndexed', () => {
 		it.todo('will return true when index found');
 		it.todo('will return false when index not found');

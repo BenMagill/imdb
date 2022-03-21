@@ -139,7 +139,7 @@ class Table {
 	// keeps track of rows without any data
 	empty: number[];
 
-	constructor (options?: {data?: Object[], indexes?: string[]}) {
+	constructor (options?: {data?: Row[], indexes?: string[]}) {
 		this.index = 1;
 
 		this.data = options?.data? [...this.build(options.data)] : [];
@@ -156,7 +156,7 @@ class Table {
 		this.empty = [];
 	}
     
-	operators: KeyValue<Function> = {
+	operators: KeyValue<(Operation) => number[]> = {
 		eq: (op: Operation) => {
 			if (op.type === 'root') throw Error();
     
@@ -358,7 +358,7 @@ class Table {
 	/**
      * Adds the indexes for a row on its creation 
      */
-	addIndexesForRow(row: RowInput, position: number) {
+	addIndexesForRow(row: RowInput, position: number): void {
 		for (const key in row) {
 			if (Object.prototype.hasOwnProperty.call(row, key)) {
 				const value = row[key];
@@ -378,7 +378,7 @@ class Table {
 		return key.startsWith('$');
 	}
 
-	build(data: any[]) {
+	build(data: any[]): Row[] {
 		const formatted: any = [];
 		data.forEach(row => {
 			if (row._id) {
