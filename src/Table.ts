@@ -1,6 +1,6 @@
 // handles the underlying logic of CRUD operations with queries
 
-import { isEmptyObject, isObject } from './helpers';
+import { forin, isEmptyObject, isObject } from './helpers';
 import { KeyValue } from './types';
 
 /**
@@ -9,7 +9,7 @@ import { KeyValue } from './types';
  * not
  * nor
  * or
- * 
+ *
  * CHILD OPS ( on a field )
  * eq
  * gt
@@ -34,7 +34,7 @@ import { KeyValue } from './types';
 // TODO deterine how to index arrays and objects
 /**
  * most likey solution for indexing objects is to only allow indexing of a field inside of it
- *  for example 
+ *  for example
  *  {
  *      obj: {
  *          a: 1
@@ -42,8 +42,8 @@ import { KeyValue } from './types';
  *      }
  *  }
  *  document.obj.a can be indexed but document.obj cant as its not a basic data type
- *  indexing a whole object could work by indexing each child field and then using these to find 
- * 
+ *  indexing a whole object could work by indexing each child field and then using these to find
+ *
  * for arrays easy to allow indexing of basic types but problem with child arrays and objects
  */
 
@@ -51,19 +51,21 @@ type IndexPositions = KeyValue<number[]>
 
 type Value = string | number | KeyValue<unknown> | unknown[] | boolean;
 
-const serializeKey = (value: Value): string => {
-	return typeof value + JSON.stringify(value);
-};
+type RowInput = KeyValue<Value>
+
+const serializeKey = (value: Value): string => typeof value + JSON.stringify(value);
+
+const isOperation = (key: string): boolean => key.startsWith('$');
 
 class Index {
 	indexes: IndexPositions = {};
+
 	fieldName: string;
 
 	constructor(fieldName: string) {
 		this.fieldName = fieldName;
 		this.indexes = {};
 	}
-
 
 	// Get based on a value or returns null
 	get(value: Value): number[] | null {
@@ -83,8 +85,7 @@ class Index {
 			this.indexes[serializeKey(value)] = [position];
 		}
 	}
-    
-    
+
 	update(position: number, oldValue: Value, newValue: Value): void {
 		// check if index actually exists
 		const currData = this.get(oldValue);
@@ -93,7 +94,7 @@ class Index {
 			this.add(position, newValue);
 		}
 	}
-    
+
 	delete(position: number, value: Value): void {
 		const currData = this.get(value);
 		if (currData) {
@@ -116,7 +117,6 @@ class Index {
 	}
 }
 
-
 type Operation = {
     data: any[]
     value: any
@@ -128,48 +128,48 @@ type Operation = {
     type: 'root'
 }
 
-type RowInput = KeyValue<Value>
+type UniqueId = number;
 
 type Row = {
 	[key: string]: Value,
 	_id: UniqueId
 }
 
-type UniqueId = number;
-
 type Query = KeyValue<Value | Operation>
 
 class Table {
 	data: Array<Row | null>;
+
 	index: UniqueId;
+
 	indexes: {
-        [key: string]: Index 
+        [key: string]: Index
     };
 
 	// keeps track of rows without any data
 	empty: number[];
 
-	constructor (options?: {data?: Row[], indexes?: string[]}) {
+	constructor(options?: {data?: Row[], indexes?: string[]}) {
 		this.index = 1;
 
-		this.data = options?.data? [...this.build(options.data)] : [];
+		this.data = options?.data ? [...this.build(options.data)] : [];
 
 		this.indexes = {
-			_id: new Index('_id')
+			_id: new Index('_id'),
 		};
 		// create indexes for provided fields
-		options?.indexes?.forEach(keyName => {
+		options?.indexes?.forEach((keyName) => {
 			this.indexes[keyName] = new Index(keyName);
 		});
 
 		this.indexes._id.build(this.data || []);
 		this.empty = [];
 	}
-    
-	operators: KeyValue<(op: Operation) => number[]> = {
+
+	operators: KeyValue<(/** op: Operation */) => number[]> = {
 		// eq: (op: Operation) => {
 		// 	if (op.type === 'root') throw Error();
-    
+
 		// 	if (this.indexes[op.field]) {
 		// 		const found = this.indexes[op.field][op.value];
 		// 		if (!found) return null;
@@ -195,7 +195,7 @@ class Table {
 	executeQuery(query: Query): number[] {
 		let indexes: number[] = [];
 		let firstCycle = true;
-        
+
 		// handle empty
 		if (isEmptyObject(query)) {
 			// return all positions without the deleted ones
@@ -206,70 +206,66 @@ class Table {
 			}
 		}
 
-		for (const key in query) {
-			if (Object.prototype.hasOwnProperty.call(query, key)) {
-				const value = query[key];
-				// console.log({key, value})
-				// console.log('is operator: ', this.isOperation(key))
-                
-				// Check if key is operator
-				if (this.isOperation(key)) {
-					// TODO add this
-					if (!this.operators[key]) throw Error();
-					// const result = this.operators[key]({
-					// 	data: this.data,
-					// 	key,
-					// 	type: 'root',
-					// 	value: value,
-					// });
-				} else if (isObject(value)) {
-					// if the value is an object will mean uses operators
-				} else {
-					// find rows where key field equals value
-					// check if field indexed
-					if (this.isIndexed(key)) {
-						const index = this.indexes[key];
-						// DPrint(`key ${key} is indexed`)
-						const positionsFound = index.get(value) || [];
-						if (firstCycle) {
-							indexes = positionsFound;
-						} else {
-							// get intersect of indexes and positionsFound 
-							// TODO how can this be more efficient
-							const tempIndexes: number[] = [];
-							positionsFound.forEach(position => {
-								if (indexes.indexOf(position) > -1) {
-									tempIndexes.push(position);
-								}
-							});
-							indexes = tempIndexes;
-						}
+		forin(query, (key) => {
+			const value = query[key];
+			// console.log({key, value})
+			// console.log('is operator: ', isOperation(key))
+
+			// Check if key is operator
+			if (isOperation(key)) {
+				// TODO add this
+				if (!this.operators[key]) throw Error();
+				// const result = this.operators[key]({
+				// 	data: this.data,
+				// 	key,
+				// 	type: 'root',
+				// 	value: value,
+				// });
+			} else if (isObject(value)) {
+				// if the value is an object will mean uses operators
+			} else {
+				// find rows where key field equals value
+				// check if field indexed
+				if (this.isIndexed(key)) {
+					const index = this.indexes[key];
+					// DPrint(`key ${key} is indexed`)
+					const positionsFound = index.get(value) || [];
+					if (firstCycle) {
+						indexes = positionsFound;
 					} else {
-						if (firstCycle) {
-							// have to search all data
-							const positionsFound: number[] = [];
-							this.data.forEach((row, index) => {
-								if (row && row[key] === value) {
-									positionsFound.push(index);
-								}
-							});
-							indexes = positionsFound;
-						} else {
-							// look based on what found so far
-							const tempIndexes: number[] = [];
-							indexes.forEach(position => {
-								const row = this.data[position];
-								if (row && row[key] === value) {
-									tempIndexes.push(position);
-								}
-							});
-							indexes = tempIndexes;
-						}
+						// get intersect of indexes and positionsFound
+						// TODO how can this be more efficient
+						const tempIndexes: number[] = [];
+						positionsFound.forEach((position) => {
+							if (indexes.indexOf(position) > -1) {
+								tempIndexes.push(position);
+							}
+						});
+						indexes = tempIndexes;
 					}
+				} else if (firstCycle) {
+					// have to search all data
+					const positionsFound: number[] = [];
+					this.data.forEach((row, index) => {
+						if (row && row[key] === value) {
+							positionsFound.push(index);
+						}
+					});
+					indexes = positionsFound;
+				} else {
+					// look based on what found so far
+					const tempIndexes: number[] = [];
+					indexes.forEach((position) => {
+						const row = this.data[position];
+						if (row && row[key] === value) {
+							tempIndexes.push(position);
+						}
+					});
+					indexes = tempIndexes;
 				}
-				firstCycle = false;
 			}
-		}
+			firstCycle = false;
+		});
 		return indexes;
 	}
 
@@ -278,7 +274,7 @@ class Table {
 		const rowIndex = this.index++;
 		// Determine where it will be
 		let rowPosition;
-		const cleanedData = { ...data, _id: rowIndex};
+		const cleanedData = { ...data, _id: rowIndex };
 
 		rowPosition = this.empty.pop();
 		if (rowPosition === undefined) {
@@ -294,9 +290,9 @@ class Table {
 	find(query: Query): Row[] {
 		const positions = this.executeQuery(query);
 		const loaded: Row[] = [];
-		positions.forEach(position => {
+		positions.forEach((position) => {
 			const row = this.data[position];
-			if (row !== null) {	
+			if (row !== null) {
 				loaded.push(row);
 			} else {
 				console.log(`No data for row at position ${position}`);
@@ -307,56 +303,52 @@ class Table {
 
 	delete(query: Query): { success: boolean, deletedCount: number } {
 		const positions = this.executeQuery(query);
-		positions.forEach(position => {
+		positions.forEach((position) => {
 			const row = this.data[position];
 			this.data[position] = null;
 			this.empty.push(position);
 			if (row !== null) {
-				for (const key in this.indexes) {
-					if (Object.prototype.hasOwnProperty.call(this.indexes, key)) {
-						const index = this.indexes[key];
-						index.delete(position, row[key]);
-					}
-				}
+				forin(this.indexes, (key) => {
+					const index = this.indexes[key];
+					index.delete(position, row[key]);
+				});
 			}
 		});
 		return {
 			success: true,
-			deletedCount: positions.length
+			deletedCount: positions.length,
 		};
-	} 
+	}
 
 	update(query: Query, set: KeyValue<Value>): {
 		success: boolean,
 		updated: number,
-		failed: number            
+		failed: number
 	} {
 		const positions = this.executeQuery(query);
 		let errors = 0;
 		// locations that matched the query
-		positions.forEach(position => {
+		positions.forEach((position) => {
 			const row = this.data[position];
 			if (row) {
 				// dont allow _id to be modified
-				this.data[position] = {...this.data[position], ...set, _id: row._id };
+				this.data[position] = { ...this.data[position], ...set, _id: row._id };
 
 				// update indexes
-				for (const key in set) {
-					if (Object.prototype.hasOwnProperty.call(set, key)) {
-						if (this.isIndexed(key)) {
-							const value = set[key];
-							this.indexes[key].update(position, row[key], value);
-						}
+				forin(set, (key) => {
+					if (this.isIndexed(key)) {
+						const value = set[key];
+						this.indexes[key].update(position, row[key], value);
 					}
-				}
+				});
 			} else {
 				errors++;
 			}
 		});
 		return {
 			success: true,
-			updated: (positions.length)-errors,
-			failed: errors            
+			updated: (positions.length) - errors,
+			failed: errors,
 		};
 	}
 
@@ -371,37 +363,30 @@ class Table {
 	}
 
 	/**
-     * Adds the indexes for a row on its creation 
+     * Adds the indexes for a row on its creation
      */
 	addIndexesForRow(row: RowInput, position: number): void {
-		for (const key in row) {
-			if (Object.prototype.hasOwnProperty.call(row, key)) {
-				const value = row[key];
-				if (this.isIndexed(key)) {
-					const index = this.indexes[key];
-					index.add(position, value);
-				}
+		forin(row, (key) => {
+			const value = row[key];
+			if (this.isIndexed(key)) {
+				const index = this.indexes[key];
+				index.add(position, value);
 			}
-		}
+		});
 	}
 
 	isIndexed(key: string): boolean {
 		return !!this.indexes[key];
 	}
 
-	isOperation(key: string): boolean {
-		return key.startsWith('$');
-	}
-
 	build(data: Array<RowInput>): Row[] {
 		const formatted: Row[] = [];
-		data.forEach(row => {
+		data.forEach((row) => {
 			if (row._id) {
 				// ensure no duplicates
 				throw new Error('Cant provide custom _id');
 			} else {
-				row._id = this.generateId();
-				formatted.push({...row, _id: this.generateId()} as Row);
+				formatted.push({ ...row, _id: this.generateId() } as Row);
 			}
 		});
 		return formatted;

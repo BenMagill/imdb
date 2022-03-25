@@ -1,7 +1,7 @@
 /**
  * basically just a wrapper for managing tables
  * tables can be used without this if wanted
- * 
+ *
  */
 import Table from './Table';
 
@@ -9,6 +9,7 @@ class Database {
 	tables: {
         [key: string]: Table
     };
+
 	constructor() {
 		this.tables = {};
 	}
@@ -20,7 +21,7 @@ class Database {
 	add(name: string): boolean {
 		if (this.get(name)) {
 			throw new Error('Table already exists');
-		}        
+		}
 		this.tables[name] = new Table();
 		return true;
 	}
@@ -29,9 +30,8 @@ class Database {
 		if (this.get(name)) {
 			delete this.tables[name];
 			return true;
-		} else {
-			throw new Error('Table does not exist');
 		}
+		throw new Error('Table does not exist');
 	}
 }
 
